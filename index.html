@@ -1,0 +1,474 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1b2330">
+<title>Semáforo de correos</title>
+<style>
+  :root {
+    --base: #1b2330;
+    --panel: #243044;
+    --line: #34435b;
+    --text: #eef2f6;
+    --muted: #9aa7b8;
+    --red: #e04a50;
+    --red-bg: #3d2229;
+    --green: #34c077;
+    --green-bg: #173f2c;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--base); color: var(--text); }
+  body {
+    font-family: "Roboto Flex", Roboto, system-ui, -apple-system, "Segoe UI", sans-serif;
+    min-height: 100vh;
+    padding: env(safe-area-inset-top) 0 calc(96px + env(safe-area-inset-bottom));
+  }
+  .hidden { display: none !important; }
+
+  header { padding: 22px 18px 8px; }
+  h1 { margin: 0; font-size: 1.6rem; font-weight: 800; letter-spacing: -0.02em; }
+  #summary { margin: 6px 0 0; color: var(--muted); font-size: 0.95rem; }
+
+  main { padding: 12px 14px; display: grid; gap: 12px; }
+
+  .empty {
+    border: 1.5px dashed var(--line);
+    border-radius: 14px;
+    padding: 28px 18px;
+    color: var(--muted);
+    line-height: 1.5;
+  }
+
+  .row {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 6px 14px;
+    padding: 16px 16px 10px 18px;
+    border-radius: 14px;
+    border-left: 10px solid var(--red);
+    background: var(--red-bg);
+    transition: background-color .25s, border-color .25s;
+  }
+  .row.ready { border-left-color: var(--green); background: var(--green-bg); }
+
+  .mail { font-weight: 700; font-size: 1.05rem; overflow-wrap: anywhere; }
+  .rule { margin-top: 4px; color: var(--muted); font-size: 0.88rem; line-height: 1.35; }
+
+  .clock { text-align: right; align-self: center; }
+  .count {
+    display: block;
+    font-size: 1.9rem;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    font-variant-numeric: tabular-nums;
+    color: var(--red);
+  }
+  .row.ready .count { color: var(--green); }
+  .state { display: block; font-size: 0.8rem; color: var(--muted); margin-top: 2px; }
+
+  .actions { grid-column: 1 / -1; display: flex; gap: 4px; margin-top: 4px; }
+  .actions button {
+    background: none; border: 0; color: var(--text);
+    font: inherit; font-size: 0.9rem; font-weight: 600;
+    padding: 10px 12px; margin-left: -12px; border-radius: 10px; cursor: pointer;
+  }
+  .actions button + button { margin-left: 0; }
+  button:focus-visible, input:focus-visible { outline: 3px solid #fff; outline-offset: 2px; }
+  .actions .danger { color: #ff9a9e; margin-left: auto; }
+
+  .fab {
+    position: fixed; left: 14px; right: 14px;
+    bottom: calc(14px + env(safe-area-inset-bottom));
+    max-width: 560px; margin: 0 auto;
+    border: 0; border-radius: 16px; padding: 17px;
+    background: var(--text); color: var(--base);
+    font: inherit; font-size: 1.05rem; font-weight: 800; cursor: pointer;
+  }
+
+  /* Pantalla de agregar / editar */
+  .bar { display: flex; align-items: center; gap: 10px; padding: 14px 10px 6px; }
+  .bar h2 { margin: 0; font-size: 1.3rem; font-weight: 800; }
+  .back {
+    background: none; border: 0; color: var(--text); cursor: pointer;
+    font: inherit; font-size: 1rem; font-weight: 700; padding: 10px 12px; border-radius: 10px;
+  }
+  .formbox { padding: 14px 18px; max-width: 560px; }
+
+  label.field { display: block; margin-bottom: 14px; font-size: 0.9rem; color: var(--muted); }
+  input[type="email"], input[type="time"], input[type="number"] {
+    display: block; width: 100%; margin-top: 6px;
+    padding: 13px 12px; border-radius: 10px;
+    border: 1.5px solid var(--line); background: var(--panel); color: var(--text);
+    font: inherit; font-size: 1.05rem;
+  }
+
+  .modes { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 14px; }
+  .modes label {
+    display: block; text-align: center; padding: 13px 8px; border-radius: 10px;
+    border: 1.5px solid var(--line); cursor: pointer; font-weight: 600;
+  }
+  .modes input { position: absolute; opacity: 0; pointer-events: none; }
+  .modes label.on { background: var(--text); color: var(--base); border-color: var(--text); }
+
+  .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .hint { margin: -4px 0 14px; color: var(--muted); font-size: 0.88rem; line-height: 1.4; }
+  #err { min-height: 1.2em; margin: 0 0 10px; color: #ff9a9e; font-size: 0.9rem; }
+
+  .btn {
+    width: 100%; border: 0; border-radius: 14px; padding: 17px; cursor: pointer;
+    font: inherit; font-size: 1.05rem; font-weight: 800;
+    background: var(--green); color: #07261a;
+  }
+
+  #toast {
+    position: fixed; left: 14px; right: 14px; top: calc(14px + env(safe-area-inset-top));
+    max-width: 560px; margin: 0 auto; padding: 14px 16px; border-radius: 12px;
+    background: var(--green); color: #07261a; font-weight: 700;
+    transform: translateY(-140%); transition: transform .25s; z-index: 10;
+  }
+  #toast.info { background: var(--text); color: var(--base); }
+  #toast.show { transform: translateY(0); }
+
+  @media (prefers-reduced-motion: reduce) {
+    .row, #toast { transition: none; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Pantalla principal -->
+<div id="viewMain">
+  <header>
+    <h1>Semáforo de correos</h1>
+    <p id="summary"></p>
+  </header>
+  <main id="list"></main>
+  <button class="fab" id="add" type="button">Agregar cuenta</button>
+</div>
+
+<!-- Pantalla de agregar / editar -->
+<div id="viewForm" class="hidden">
+  <div class="bar">
+    <button type="button" class="back" id="back">Volver</button>
+    <h2 id="formTitle">Agregar cuenta</h2>
+  </div>
+  <div class="formbox" id="formBox">
+    <label class="field">Correo electrónico
+      <input type="email" id="email" inputmode="email" autocomplete="off" autocapitalize="none" placeholder="nombre@ejemplo.com">
+    </label>
+
+    <div class="modes" id="modes">
+      <label id="lblFixed"><input type="radio" name="mode" value="fixed" checked>Hora fija</label>
+      <label id="lblTimer"><input type="radio" name="mode" value="timer">Temporizador</label>
+    </div>
+
+    <div id="fixedBox">
+      <label class="field">Se pone en verde a las
+        <input type="time" id="time" value="09:00">
+      </label>
+      <p class="hint">Queda en rojo con cuenta regresiva y se pone en verde una sola vez. Se queda en verde hasta que configures otra hora y guardes. Si esa hora ya pasó hoy, cuenta hasta mañana.</p>
+    </div>
+
+    <div id="timerBox" class="hidden">
+      <div class="pair">
+        <label class="field">Horas
+          <input type="number" id="hours" min="0" max="999" inputmode="numeric" value="0">
+        </label>
+        <label class="field">Minutos
+          <input type="number" id="mins" min="0" max="59" inputmode="numeric" value="30">
+        </label>
+      </div>
+    </div>
+
+    <p id="err" role="alert"></p>
+    <button type="button" class="btn" id="save">Guardar</button>
+  </div>
+</div>
+
+<div id="toast" role="status" aria-live="polite"></div>
+
+<script>
+(function () {
+  var KEY = 'semaforo-correos-v1';
+  var accounts = load();
+  var editingId = null;
+  var firstTick = true;
+
+  var $ = function (id) { return document.getElementById(id); };
+  var listEl = $('list'), errEl = $('err');
+
+  accounts.forEach(function (a) {
+    if (a.mode === 'fixed' && !a.target) {
+      var q = a.time.split(':'), d0 = new Date();
+      d0.setHours(+q[0], +q[1], 0, 0);
+      if (a.since && a.since > d0.getTime()) d0.setDate(d0.getDate() + 1);
+      a.target = d0.getTime();
+    }
+    delete a.since;
+  });
+
+  function load() {
+    try { return JSON.parse(localStorage.getItem(KEY)) || []; } catch (e) { return []; }
+  }
+  function save() {
+    try { localStorage.setItem(KEY, JSON.stringify(accounts)); } catch (e) {}
+  }
+  function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
+  function pad(n) { return (n < 10 ? '0' : '') + n; }
+  function esc(s) {
+    return String(s).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+
+  function fmt(ms) {
+    var s = Math.max(0, Math.ceil(ms / 1000));
+    var h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), sec = s % 60;
+    return h > 0 ? h + ':' + pad(m) + ':' + pad(sec) : pad(m) + ':' + pad(sec);
+  }
+
+  // Momento (ms) en que la cuenta pasa a verde
+  function targetOf(a) { return a.target; }
+  // Identifica cada ciclo para avisar una sola vez
+  function cycleKey(a, t) { return 't' + t; }
+
+  function dayLabel(t, now) {
+    var d = new Date(t), n = new Date(now);
+    var a0 = new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+    var b0 = new Date(n.getFullYear(), n.getMonth(), n.getDate()).getTime();
+    var diff = Math.round((a0 - b0) / 86400000);
+    if (diff === 0) return 'hoy';
+    if (diff === 1) return 'mañana';
+    if (diff === -1) return 'ayer';
+    return 'el ' + pad(d.getDate()) + '/' + pad(d.getMonth() + 1);
+  }
+  function ago(ms) {
+    return ms >= 86400000 ? Math.floor(ms / 86400000) + ' d ' + Math.floor((ms % 86400000) / 3600000) + ' h' : fmt(ms);
+  }
+
+  function ruleText(a, now) {
+    if (a.mode === 'timer') {
+      var h = Math.floor(a.duration / 60), m = a.duration % 60;
+      return 'Temporizador de ' + (h ? h + ' h ' : '') + (m ? m + ' min' : '');
+    }
+    var ready = now >= a.target;
+    return (ready ? 'Se puso en verde ' : 'Se pone en verde ') + dayLabel(a.target, now) + ' a las ' + a.time;
+  }
+
+  // ---------- Pantallas ----------
+  function show(view) {
+    $('viewMain').classList.toggle('hidden', view !== 'main');
+    $('viewForm').classList.toggle('hidden', view !== 'form');
+    window.scrollTo(0, 0);
+  }
+
+  // ---------- Lista ----------
+  function render() {
+    listEl.innerHTML = '';
+    if (!accounts.length) {
+      var e = document.createElement('div');
+      e.className = 'empty';
+      e.textContent = 'Todavía no hay cuentas. Toca "Agregar cuenta", escribe el correo y elige a qué hora o después de cuánto tiempo debe ponerse en verde.';
+      listEl.appendChild(e);
+      updateSummary(0, 0);
+      return;
+    }
+    accounts.forEach(function (a) {
+      var row = document.createElement('article');
+      row.className = 'row wait';
+      row.setAttribute('data-id', a.id);
+      row.innerHTML =
+        '<div class="info"><div class="mail">' + esc(a.email) + '</div>' +
+        '<div class="rule">' + esc(ruleText(a, Date.now())) + '</div></div>' +
+        '<div class="clock"><span class="count"></span><span class="state"></span></div>' +
+        '<div class="actions">' +
+        '<button type="button" data-act="edit">Editar</button>' +
+        (a.mode === 'timer' ? '<button type="button" data-act="reset">Reiniciar</button>' : '') +
+        '<button type="button" class="danger" data-act="del">Eliminar</button></div>';
+      listEl.appendChild(row);
+    });
+    tick();
+  }
+
+  function updateSummary(green, red) {
+    $('summary').textContent = accounts.length
+      ? green + ' en verde · ' + red + ' en rojo'
+      : 'Sin cuentas';
+  }
+
+  function tick() {
+    var now = Date.now(), green = 0, red = 0, dirty = false;
+    accounts.forEach(function (a) {
+      var row = listEl.querySelector('[data-id="' + a.id + '"]');
+      if (!row) return;
+      var t = targetOf(a), ready = now >= t, key = cycleKey(a, t);
+      row.classList.toggle('ready', ready);
+      row.classList.toggle('wait', !ready);
+      row.querySelector('.count').textContent = ready ? 'Listo' : fmt(t - now);
+      row.querySelector('.rule').textContent = ruleText(a, now);
+      row.querySelector('.state').textContent = ready ? 'En verde hace ' + ago(now - t) : 'En rojo, falta';
+      if (ready) green++; else red++;
+      if (ready && a.notified !== key) {
+        a.notified = key; dirty = true;
+        if (!firstTick) announce(a);
+      }
+    });
+    firstTick = false;
+    if (dirty) save();
+    updateSummary(green, red);
+  }
+
+  // ---------- Avisos ----------
+  var audio;
+  function unlockAudio() {
+    try {
+      var AC = window.AudioContext || window.webkitAudioContext;
+      audio = audio || new AC();
+      if (audio.resume) audio.resume();
+    } catch (e) {}
+  }
+  document.addEventListener('pointerdown', unlockAudio, { once: true });
+
+  function beep() {
+    try {
+      if (!audio) return;
+      var o = audio.createOscillator(), g = audio.createGain(), t0 = audio.currentTime;
+      o.type = 'sine'; o.frequency.value = 880;
+      o.connect(g); g.connect(audio.destination);
+      g.gain.setValueAtTime(0.001, t0);
+      g.gain.exponentialRampToValueAtTime(0.3, t0 + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.001, t0 + 0.6);
+      o.start(t0); o.stop(t0 + 0.65);
+    } catch (e) {}
+  }
+
+  var toastTimer;
+  function toast(msg, kind) {
+    var el = $('toast');
+    el.textContent = msg;
+    el.classList.toggle('info', kind === 'info');
+    el.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { el.classList.remove('show'); }, 4000);
+  }
+  function announce(a) {
+    try { if (navigator.vibrate) navigator.vibrate([300, 150, 300]); } catch (e) {}
+    beep();
+    toast(a.email + ' ya está en verde');
+  }
+
+  // ---------- Formulario ----------
+  function currentMode() {
+    return $('lblTimer').querySelector('input').checked ? 'timer' : 'fixed';
+  }
+  function setMode(mode) {
+    $('lblFixed').querySelector('input').checked = mode === 'fixed';
+    $('lblTimer').querySelector('input').checked = mode === 'timer';
+    $('lblFixed').classList.toggle('on', mode === 'fixed');
+    $('lblTimer').classList.toggle('on', mode === 'timer');
+    $('fixedBox').classList.toggle('hidden', mode !== 'fixed');
+    $('timerBox').classList.toggle('hidden', mode !== 'timer');
+  }
+  $('modes').addEventListener('click', function (e) {
+    var lbl = e.target.closest('label');
+    if (!lbl) return;
+    setMode(lbl.id === 'lblTimer' ? 'timer' : 'fixed');
+  });
+
+  function openForm(a) {
+    editingId = a ? a.id : null;
+    $('formTitle').textContent = a ? 'Editar cuenta' : 'Agregar cuenta';
+    $('email').value = a ? a.email : '';
+    setMode(a ? a.mode : 'fixed');
+    $('time').value = a && a.time ? a.time : '09:00';
+    var d = a && a.duration ? a.duration : 30;
+    $('hours').value = Math.floor(d / 60);
+    $('mins').value = d % 60;
+    errEl.textContent = '';
+    show('form');
+  }
+
+  $('add').addEventListener('click', function () { openForm(null); });
+  $('back').addEventListener('click', function () { show('main'); });
+  $('email').addEventListener('keydown', function (e) { if (e.key === 'Enter') saveAccount(); });
+  $('save').addEventListener('click', saveAccount);
+
+  function saveAccount() {
+    var email = $('email').value.trim();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      errEl.textContent = 'Escribe un correo válido, por ejemplo nombre@ejemplo.com.';
+      return;
+    }
+    var mode = currentMode(), now = Date.now();
+    var old = editingId ? accounts.filter(function (x) { return x.id === editingId; })[0] : null;
+    var a = old || { id: uid() };
+    a.email = email;
+    a.mode = mode;
+
+    if (mode === 'fixed') {
+      var time = $('time').value;
+      if (!time) { errEl.textContent = 'Elige la hora en la que se pone en verde.'; return; }
+      a.time = time;
+      var q = time.split(':'), d1 = new Date(now);
+      d1.setHours(+q[0], +q[1], 0, 0);
+      if (d1.getTime() <= now) d1.setDate(d1.getDate() + 1);
+      a.target = d1.getTime();
+      delete a.duration;
+    } else {
+      var dur = (parseInt($('hours').value, 10) || 0) * 60 + (parseInt($('mins').value, 10) || 0);
+      if (!(dur > 0)) { errEl.textContent = 'El temporizador debe durar al menos 1 minuto.'; return; }
+      var changed = !old || old.mode !== 'timer' || old.duration !== dur;
+      a.duration = dur;
+      if (changed) a.target = now + dur * 60000;
+      delete a.time;
+    }
+
+    var t = targetOf(a);
+    a.notified = now >= t ? cycleKey(a, t) : null;
+    if (!old) accounts.push(a);
+    save();
+    editingId = null;
+    show('main');
+    render();
+    var row = listEl.querySelector('[data-id="' + a.id + '"]');
+    if (row) row.scrollIntoView({ block: 'nearest' });
+    toast((old ? 'Guardado: ' : 'Agregada: ') + a.email, 'info');
+  }
+
+  // ---------- Acciones de cada tarjeta ----------
+  listEl.addEventListener('click', function (e) {
+    var btn = e.target.closest('button[data-act]');
+    if (!btn) return;
+    var id = btn.closest('.row').getAttribute('data-id');
+    var a = accounts.filter(function (x) { return x.id === id; })[0];
+    if (!a) return;
+    var act = btn.getAttribute('data-act');
+    if (act === 'edit') openForm(a);
+    if (act === 'reset') {
+      a.target = Date.now() + a.duration * 60000;
+      a.notified = null;
+      save(); render();
+    }
+    if (act === 'del') {
+      // Confirmación dentro de la app: se toca dos veces
+      if (btn.getAttribute('data-ask')) {
+        accounts = accounts.filter(function (x) { return x.id !== id; });
+        save(); render();
+      } else {
+        btn.setAttribute('data-ask', '1');
+        btn.textContent = 'Toca otra vez para eliminar';
+        setTimeout(function () {
+          if (btn.isConnected) { btn.removeAttribute('data-ask'); btn.textContent = 'Eliminar'; }
+        }, 3000);
+      }
+    }
+  });
+
+  document.addEventListener('visibilitychange', function () { if (!document.hidden) tick(); });
+  setInterval(tick, 1000);
+  render();
+})();
+</script>
+</body>
+</html>
