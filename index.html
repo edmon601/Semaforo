@@ -20,6 +20,7 @@
     --red-bg: #3d2229;
     --green: #34c077;
     --green-bg: #173f2c;
+    --hat: #2ec4d6;
   }
   * { box-sizing: border-box; }
   html, body { margin: 0; background: var(--base); color: var(--text); }
@@ -62,10 +63,19 @@
   }
   .tap:active { background: rgba(255,255,255,.06); }
   .tap:focus-visible { outline: 3px solid #fff; outline-offset: -3px; }
-  .tap .info { display: contents; }
-  .tap .mail { grid-column: 1 / -1; }
+  .tap .head { grid-column: 1 / -1; }
   .tap .rule { grid-column: 1; align-self: center; margin-top: 0; }
-  .tap .clock { grid-column: 2; grid-row: 2; }
+  .tap .clock { grid-column: 2; }
+  .proj { margin-top: 3px; color: var(--text); opacity: .85; font-size: 0.92rem; overflow-wrap: anywhere; }
+  .proj::before { content: "Proyecto: "; color: var(--muted); }
+  .tap .mail { display: flex; align-items: center; gap: 8px; }
+  .addr { min-width: 0; overflow-wrap: anywhere; }
+  .hat { display: none; flex: none; color: var(--hat); }
+  .hat svg { display: block; width: 56px; height: 40px; }
+  .hat img { display: block; width: 56px; height: 56px; border-radius: 12%; }
+  .row.marked { box-shadow: 0 0 0 2px var(--hat); }
+  .row.marked .hat { display: block; }
+  .actions .hatbtn { color: var(--hat); }
   .edit-hint { margin: 8px 0 0; color: var(--muted); font-size: 0.85rem; }
 
   .mail { font-weight: 700; font-size: 1.05rem; overflow-wrap: anywhere; }
@@ -83,11 +93,11 @@
   .row.ready .count { color: var(--green); }
   .state { display: block; font-size: 0.8rem; color: var(--muted); margin-top: 2px; }
 
-  .actions { display: flex; gap: 4px; padding: 0 16px 8px 18px; }
+  .actions { display: flex; flex-wrap: wrap; gap: 2px; padding: 0 12px 8px 18px; }
   .actions button {
     background: none; border: 0; color: var(--text);
     font: inherit; font-size: 0.9rem; font-weight: 600;
-    padding: 10px 12px; margin-left: -12px; border-radius: 10px; cursor: pointer;
+    padding: 10px 8px; margin-left: -8px; border-radius: 10px; cursor: pointer;
   }
   .actions button + button { margin-left: 0; }
   button:focus-visible, input:focus-visible { outline: 3px solid #fff; outline-offset: 2px; }
@@ -112,7 +122,7 @@
   .formbox { padding: 14px 18px; max-width: 560px; }
 
   label.field { display: block; margin-bottom: 14px; font-size: 0.9rem; color: var(--muted); }
-  input[type="email"], input[type="time"], input[type="number"] {
+  input[type="email"], input[type="text"], input[type="time"], input[type="number"] {
     display: block; width: 100%; margin-top: 6px;
     padding: 13px 12px; border-radius: 10px;
     border: 1.5px solid var(--line); background: var(--panel); color: var(--text);
@@ -129,6 +139,7 @@
 
   .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
   .hint { margin: -4px 0 14px; color: var(--muted); font-size: 0.88rem; line-height: 1.4; }
+  .btn.alt { margin-top: 10px; background: transparent; border: 1.5px solid var(--line); color: var(--text); font-weight: 700; }
   #err { min-height: 1.2em; margin: 0 0 10px; color: #ff9a9e; font-size: 0.9rem; }
 
   .btn {
@@ -175,6 +186,10 @@
       <input type="email" id="email" inputmode="email" autocomplete="off" autocapitalize="none" placeholder="nombre@ejemplo.com">
     </label>
 
+    <label class="field">Proyecto (opcional)
+      <input type="text" id="project" maxlength="60" autocomplete="off" placeholder="¿En qué proyecto trabajas con esta cuenta?">
+    </label>
+
     <div class="modes" id="modes">
       <label id="lblFixed"><input type="radio" name="mode" value="fixed" checked>Hora fija</label>
       <label id="lblTimer"><input type="radio" name="mode" value="timer">Temporizador</label>
@@ -200,6 +215,7 @@
 
     <p id="err" role="alert"></p>
     <button type="button" class="btn" id="save">Guardar</button>
+    <button type="button" class="btn alt hidden" id="saveKeep">Guardar sin cambiar la hora</button>
   </div>
 </div>
 
@@ -264,6 +280,14 @@
     return ms >= 86400000 ? Math.floor(ms / 86400000) + ' d ' + Math.floor((ms % 86400000) / 3600000) + ' h' : fmt(ms);
   }
 
+  var HAT = '<svg viewBox="-1.8 -1.8 75.6 53.6" aria-hidden="true"><g transform="scale(.0842) translate(-100 -205)" stroke="currentColor" stroke-width="24" stroke-linejoin="round" stroke-linecap="round"><path fill="#232b4b" d="M100 610C100 575 170 548 245 548L800 548C880 548 953 575 953 600C953 700 760 795 520 795C280 795 100 710 100 610Z"/><ellipse cx="520" cy="640" rx="320" ry="68" fill="#1b2140" stroke="none"/><path fill="none" d="M112 640C175 735 340 785 520 785C720 785 900 725 945 622"/><path fill="#232b4b" d="M232 255C262 330 275 400 272 540L772 540C768 400 780 330 808 255Z"/><path fill="#1a2038" stroke="none" d="M705 275C692 350 688 450 692 545L768 543C766 420 778 340 800 270Z"/><ellipse cx="520" cy="255" rx="288" ry="36" fill="#232b4b"/><path fill="none" d="M242 266C345 300 695 300 798 266"/><path fill="currentColor" fill-opacity=".55" d="M268 535C400 588 640 588 772 535L778 618C650 692 390 692 262 612Z"/></g></svg>';
+
+  var REDUCED = false;
+  try { REDUCED = window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) {}
+  function hatMarkup() {
+    return REDUCED ? HAT : '<img class="hatimg" src="hat.gif" width="56" height="56" alt="" decoding="async">';
+  }
+
   function ruleText(a, now) {
     if (a.mode === 'timer') {
       var h = Math.floor(a.duration / 60), m = a.duration % 60;
@@ -313,12 +337,16 @@
       row.setAttribute('data-id', a.id);
       row.innerHTML =
         '<div class="tap" role="button" tabindex="0" data-act="edit" aria-label="Cambiar la hora de ' + esc(a.email) + '">' +
-        '<div class="info"><div class="mail">' + esc(a.email) + '</div>' +
-        '<div class="rule">' + esc(ruleText(a, Date.now())) + '</div></div>' +
+        '<div class="head"><div class="mail"><span class="hat" title="Última cuenta usada">' + hatMarkup() + '</span><span class="addr">' + esc(a.email) + '</span></div>' +
+        (a.project ? '<div class="proj">' + esc(a.project) + '</div>' : '') + '</div>' +
+        '<div class="rule">' + esc(ruleText(a, Date.now())) + '</div>' +
         '<div class="clock"><span class="count"></span><span class="state"></span></div></div>' +
         '<div class="actions">' +
+        '<button type="button" class="hatbtn" data-act="hat" aria-pressed="false"><span class="lbl">Marcar última</span></button>' +
         (a.mode === 'timer' ? '<button type="button" data-act="reset">Reiniciar</button>' : '') +
         '<button type="button" class="danger" data-act="del">Eliminar</button></div>';
+      var gif = row.querySelector('.hatimg');
+      if (gif) gif.addEventListener('error', function () { gif.parentNode.innerHTML = HAT; });
       listEl.appendChild(row);
     });
     tick();
@@ -340,6 +368,10 @@
       row.classList.toggle('ready', ready);
       row.classList.toggle('wait', !ready);
       row.querySelector('.count').textContent = ready ? 'Listo' : fmt(t - now);
+      row.classList.toggle('marked', !!a.last);
+      var hb = row.querySelector('.hatbtn');
+      hb.setAttribute('aria-pressed', a.last ? 'true' : 'false');
+      hb.querySelector('.lbl').textContent = a.last ? 'Última usada' : 'Marcar última';
       row.querySelector('.rule').textContent = ruleText(a, now);
       row.querySelector('.state').textContent = ready ? 'En verde hace ' + ago(now - t) : 'En rojo, falta';
       if (ready) green++; else red++;
@@ -415,6 +447,8 @@
     $('formTitle').textContent = a ? 'Cambiar hora' : 'Agregar cuenta';
     $('save').textContent = a ? 'Guardar nueva hora' : 'Guardar';
     $('email').value = a ? a.email : '';
+    $('project').value = a && a.project ? a.project : '';
+    $('saveKeep').classList.toggle('hidden', !a);
     setMode(a ? a.mode : 'fixed');
     $('time').value = a && a.time ? a.time : '09:00';
     var d = a && a.duration ? a.duration : 30;
@@ -426,19 +460,35 @@
 
   $('add').addEventListener('click', function () { openForm(null); });
   $('back').addEventListener('click', closeForm);
-  $('email').addEventListener('keydown', function (e) { if (e.key === 'Enter') saveAccount(); });
-  $('save').addEventListener('click', saveAccount);
+  $('email').addEventListener('keydown', function (e) { if (e.key === 'Enter') saveAccount(false); });
+  $('save').addEventListener('click', function () { saveAccount(false); });
+  $('saveKeep').addEventListener('click', function () { saveAccount(true); });
 
-  function saveAccount() {
+  function saveAccount(keepSchedule) {
     var email = $('email').value.trim();
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       errEl.textContent = 'Escribe un correo válido, por ejemplo nombre@ejemplo.com.';
       return;
     }
-    var mode = currentMode(), now = Date.now();
+    var now = Date.now();
     var old = editingId ? accounts.filter(function (x) { return x.id === editingId; })[0] : null;
+    var project = $('project').value.trim();
+
+    // Solo correo y proyecto: no se toca la hora ni el temporizador
+    if (keepSchedule && old) {
+      old.email = email;
+      if (project) old.project = project; else delete old.project;
+      save();
+      closeForm();
+      render();
+      toast('Guardado: ' + email, 'info');
+      return;
+    }
+
+    var mode = currentMode();
     var a = old || { id: uid() };
     a.email = email;
+    if (project) a.project = project; else delete a.project;
     a.mode = mode;
 
     if (mode === 'fixed') {
@@ -478,6 +528,12 @@
     if (!a) return;
     var act = btn.getAttribute('data-act');
     if (act === 'edit') openForm(a);
+    if (act === 'hat') {
+      var wasOn = !!a.last;
+      accounts.forEach(function (x) { delete x.last; });
+      if (!wasOn) a.last = true;
+      save(); tick();
+    }
     if (act === 'reset') {
       a.target = Date.now() + a.duration * 60000;
       a.notified = null;
