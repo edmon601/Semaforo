@@ -72,7 +72,7 @@
   .addr { min-width: 0; overflow-wrap: anywhere; }
   .hat { display: none; flex: none; color: var(--hat); }
   .hat svg { display: block; width: 56px; height: 40px; }
-  .hat img { display: block; width: 56px; height: 56px; border-radius: 12%; }
+  .hat img { display: block; width: 56px; height: 47px; }
   .row.marked { box-shadow: 0 0 0 2px var(--hat); }
   .row.marked .hat { display: block; }
   .actions .hatbtn { color: var(--hat); }
@@ -285,7 +285,7 @@
   var REDUCED = false;
   try { REDUCED = window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) {}
   function hatMarkup() {
-    return REDUCED ? HAT : '<img class="hatimg" src="hat.gif" width="56" height="56" alt="" decoding="async">';
+    return REDUCED ? HAT : '<img class="hatimg" src="hat.webp" width="56" height="47" alt="" decoding="async">';
   }
 
   function ruleText(a, now) {
